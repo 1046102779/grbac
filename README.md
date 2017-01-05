@@ -16,6 +16,30 @@
 + [beego框架](https://beego.me/)
 + [redis](https://redis.io/)
 
+## OpenResty配置
+
+权限管理安插在Nginx Access访问阶段，对http请求的合法性进行校验
+
+access_by_lua_file "/data/openresty/lua_files/test_ycfm_lua_files/access_by_grbac.lua"
+
+```lua
+-- GRBAC权限管理模块
+ngx.req.read_body()
+local bodyData = ngx.req.get_body_data()
+ngx.log(ngx.ERR, "body data:", bodyData)
+local cjson = require "cjson"
+local info={
+        ["body"] =  bodyData,
+        ["method"] = ngx.req.get_method(),
+        ["uri"] = ngx.var.uri,
+}
+local encode = cjson.encode(info)
+local res = ngx.location.capture('/v1/grbac/functions', {method=ngx.HTTP_POST, body=encode})
+if res.status == 403 then
+        ngx.exit(ngx.HTTP_FORBIDDEN)
+end
+```
+
 ## 说明
 
 + `希望与大家一起成长，有任何该服务运行或者代码问题，可以及时找我沟通，喜欢开源，热爱开源, 欢迎多交流`   
