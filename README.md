@@ -34,7 +34,7 @@ local info={
         ["uri"] = ngx.var.uri,
 }
 local encode = cjson.encode(info)
-local res = ngx.location.capture('/v1/grbac/functions', {method=ngx.HTTP_POST, body=encode})
+local res = ngx.location.capture('/v1/grbac/functions/tree_parsing', {method=ngx.HTTP_POST, body=encode})
 if res.status == 403 then
         ngx.exit(ngx.HTTP_FORBIDDEN)
 end

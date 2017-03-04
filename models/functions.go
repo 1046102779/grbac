@@ -328,8 +328,8 @@ func printTree(tree *Tree, stack *Stack) {
 	}
 	if tree.FixMap != nil {
 		for key, value := range tree.FixMap {
-			stack.Push(key, stack)
-			printTree(value)
+			stack.Push(key)
+			printTree(value, stack)
 		}
 	}
 	if tree.WildCards != nil && len(tree.WildCards) > 0 {
@@ -345,7 +345,7 @@ func printTree(tree *Tree, stack *Stack) {
 func PrintTree() {
 	for key, _ := range RootMap {
 		stack := new(Stack)
-		printTree(RootMap[key])
+		printTree(RootMap[key], stack)
 	}
 }
 
