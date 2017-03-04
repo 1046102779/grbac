@@ -1,13 +1,38 @@
 package main
 
 import (
-	_ "github.com/1046102779/grbac/conf"
+	"fmt"
+	"time"
+
+	"github.com/1046102779/grbac/conf"
 	. "github.com/1046102779/grbac/logger"
 	_ "github.com/1046102779/grbac/routers"
+	metrics "github.com/rcrowley/go-metrics"
+	"github.com/smallnest/rpcx"
+	"github.com/smallnest/rpcx/codec"
+	"github.com/smallnest/rpcx/plugin"
 
-	. "github.com/1046102779/grbac/models"
+	"github.com/1046102779/grbac/models"
 	"github.com/astaxie/beego"
 )
+
+func startRPCService(rpcAddr string, etcdAddr string, grbacServer *models.GrbacServer) {
+	server := rpcx.NewServer()
+	rplugin := &plugin.EtcdRegisterPlugin{
+		ServiceAddress: "tcp@" + rpcAddr,
+		EtcdServers:    []string{etcdAddr},
+		BasePath:       fmt.Sprintf("/%s/%s", beego.BConfig.RunMode, "rpcx"),
+		Metrics:        metrics.NewRegistry(),
+		Services:       make([]string, 0),
+		UpdateInterval: time.Minute,
+	}
+	rplugin.Start()
+	server.PluginContainer.Add(rplugin)
+	server.PluginContainer.Add(plugin.NewMetricsPlugin())
+	server.RegisterName("grbacs", grbacServer, "weight=1&m=devops")
+	server.ServerCodecFunc = codec.NewProtobufServerCodec
+	server.Serve("tcp", rpcAddr)
+}
 
 func main() {
 	if beego.BConfig.RunMode == "dev" {
@@ -35,5 +60,11 @@ func main() {
 		if err := LoadEntity(); err != nil {
 		}
 	*/
+	if _, err := models.LoadWhiteList(0, 300); err != nil {
+		Logger.Error(err.Error())
+	}
+	fmt.Println("main starting...")
+	go startRPCService(conf.RpcAddr, conf.EtcdAddr, &models.GrbacServer{})
+
 	beego.Run()
 }
