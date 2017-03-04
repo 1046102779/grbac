@@ -1,14 +1,23 @@
+// 1. 权限多叉树解析获取功能ID
+// 2. 修改功能
+// 3. 删除功能
+// 4. 功能列表与搜索
+// 5. 新增功能
+// 6. 解析URL，获取功能ID
 package controllers
 
 import (
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	utils "github.com/1046102779/common"
 	. "github.com/1046102779/common/utils"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/1046102779/grbac/models"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/orm"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 )
@@ -119,5 +128,223 @@ func (t *FunctionsController) GetFuncId() {
 		t.Ctx.Output.SetStatus(200) // 有访问权限
 		return
 	}
+	return
+}
+
+type FunctionInfo struct {
+	Uri    string `json:"uri"`
+	Method string `json:"method"`
+	Name   string `json:"name"`
+}
+
+// 2. 修改功能
+// @router /:id [PUT]
+func (t *FunctionsController) ModifyFunction() {
+	var (
+		funcInfo *FunctionInfo = new(FunctionInfo)
+	)
+	// 获取功能ID
+	funcId, _ := t.GetInt(":id")
+	if funcId <= 0 {
+		err := errors.New("param `:id` empty")
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_msg":  err.Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	// 解析json
+	if err := jsoniter.Unmarshal(t.Ctx.Input.RequestBody, funcInfo); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.JSON_PARSE_FAILED,
+			"err_msg":  err.Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	o := orm.NewOrm()
+	now := time.Now()
+	// 读取相关数据
+	function := &models.Functions{
+		Id: funcId,
+	}
+	if retcode, err := function.ReadFunctionNoLock(&o); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	// 更新相关数据
+	function.Uri = funcInfo.Uri
+	function.MethodType = int16(models.GetMethodTypeByName(strings.ToUpper(funcInfo.Method)))
+	function.Name = funcInfo.Name
+	function.UpdatedAt = now
+	if retcode, err := function.UpdateFunctionNoLock(&o); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	t.Data["json"] = map[string]interface{}{
+		"err_code": 0,
+		"err_msg":  "",
+	}
+	t.ServeJSON()
+	return
+}
+
+// 3. 删除功能
+// @router /:id/invalid [PUT]
+func (t *FunctionsController) DeleteFuntion() {
+	funcId, _ := t.GetInt(":id")
+	if funcId <= 0 {
+		err := errors.New("param `:id` empty")
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_msg":  err.Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	o := orm.NewOrm()
+	now := time.Now()
+	function := &models.Functions{
+		Id: funcId,
+	}
+	if retcode, err := function.ReadFunctionNoLock(&o); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	function.UpdatedAt = now
+	function.Status = utils.STATUS_DELETED
+	if retcode, err := function.UpdateFunctionNoLock(&o); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	t.Data["json"] = map[string]interface{}{
+		"err_code": 0,
+		"err_msg":  "",
+	}
+	t.ServeJSON()
+	return
+}
+
+// 4. 功能列表与搜索
+// @router / [GET]
+func (t *FunctionsController) GetFunctions() {
+	pageIndex, _ := t.GetInt64("page_index", 1)
+	pageSize, _ := t.GetInt64("page_size", 100)
+	searchKey := t.GetString("search_key")
+	if functions, count, realCount, retcode, err := models.GetFunctions(pageIndex-1, pageSize, searchKey); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	} else {
+		t.Data["json"] = map[string]interface{}{
+			"err_code":   0,
+			"err_msg":    "",
+			"count":      count,
+			"real_count": realCount,
+			"functions":  functions,
+		}
+	}
+	t.ServeJSON()
+	return
+}
+
+// 5. 新增功能
+// @router / [POST]
+func (t *FunctionsController) AddFunction() {
+	var (
+		functionInfo *FunctionInfo = new(FunctionInfo)
+	)
+	if err := jsoniter.Unmarshal(t.Ctx.Input.RequestBody, functionInfo); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.JSON_PARSE_FAILED,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	// 解析获取thid_region_mark_key
+	// eg. /v1/storages/warehouses/:id/invalid -> :id
+	markKey, retcode, err := models.GetThirdReginMarkKey(functionInfo.Uri)
+	if err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	o := orm.NewOrm()
+	now := time.Now()
+	function := &models.Functions{
+		Uri:                functionInfo.Uri,
+		MethodType:         int16(models.GetMethodTypeByName(functionInfo.Method)),
+		Name:               functionInfo.Name,
+		ThirdRegionMarkKey: markKey,
+		Status:             utils.STATUS_VALID,
+		UpdatedAt:          now,
+		CreatedAt:          now,
+	}
+	// 判断功能是否已经存在
+	count, err := o.QueryTable(function.TableName()).Filter("uri", function.Uri).Filter("method_type", function.MethodType).Count()
+	if err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.DB_READ_ERROR,
+			"err_msg":  err.Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	if count > 0 {
+		err = errors.New("`" + functionInfo.Method + "-" + functionInfo.Uri + "` already exist")
+		t.Data["json"] = map[string]interface{}{
+			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	if retcode, err = function.InsertFunctionNoLock(&o); err != nil {
+		Logger.Error(err.Error())
+		t.Data["json"] = map[string]interface{}{
+			"err_code": retcode,
+			"err_msg":  errors.Cause(err).Error(),
+		}
+		t.ServeJSON()
+		return
+	}
+	t.Data["json"] = map[string]interface{}{
+		"err_code": 0,
+		"err_msg":  "",
+	}
+	t.ServeJSON()
 	return
 }

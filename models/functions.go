@@ -3,7 +3,6 @@ package models
 import (
 	"fmt"
 	"net/url"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -32,6 +31,54 @@ type Functions struct {
 	Status             int16     `orm:"column(status);null"`
 	UpdatedAt          time.Time `orm:"column(updated_at);type(datetime);null"`
 	CreatedAt          time.Time `orm:"column(created_at);type(datetime);null"`
+}
+
+func (t *Functions) ReadFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v] enter ReadFunctionNoLock.", t.Id)
+	defer Logger.Info("[%v] left ReadFunctionNoLock.", t.Id)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = utils.SOURCE_DATA_ILLEGAL
+		return
+	}
+	if err = (*o).Read(t); err != nil {
+		err = errors.Wrap(err, "ReadFunctionNoLock")
+		retcode = utils.DB_READ_ERROR
+		return
+	}
+	return
+}
+
+func (t *Functions) UpdateFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v] enter ModifyFunctionNoLock.", t.Id)
+	defer Logger.Info("[%v] left ModifyFunctionNoLock.", t.Id)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = utils.SOURCE_DATA_ILLEGAL
+		return
+	}
+	if _, err = (*o).Update(t); err != nil {
+		err = errors.Wrap(err, "ModifyFunctionNoLock")
+		retcode = utils.DB_UPDATE_ERROR
+		return
+	}
+	return
+}
+
+func (t *Functions) InsertFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v] enter InsertFunctionNoLock.", t.Uri)
+	defer Logger.Info("[%v] left InsertFunctionNoLock.", t.Uri)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = utils.SOURCE_DATA_ILLEGAL
+		return
+	}
+	if _, err = (*o).Insert(t); err != nil {
+		err = errors.Wrap(err, "InsertFunctionNoLock")
+		retcode = utils.DB_INSERT_ERROR
+		return
+	}
+	return
 }
 
 /*
@@ -113,12 +160,29 @@ func setupTree(root **Tree, levels []string, funcId int) (node **Tree) {
 		if strings.HasPrefix(levels[0], ":") {
 			// ::TODO  如果uri中带有如 /v1/accounts/:id(\+d)/invalid
 			// 例子中带有指定的正则表达式，则有替换、分割等操作，Name=:id ;   RegMatch=MustCompile("\+d")
-			(*root).WildCards = append((*root).WildCards,
-				&RegTree{
-					Name:     levels[0],
-					RegMatch: regexp.MustCompile("^.+$"),
-					Tree:     new(Tree),
-				})
+			if (*root).WildCards == nil {
+				(*root).WildCards = append((*root).WildCards,
+					&RegTree{
+						Name:     levels[0],
+						RegMatch: regexp.MustCompile("^.+$"),
+						Tree:     new(Tree),
+					})
+			} else {
+				index := 0
+				for index = 0; index < len((*root).WildCards); index++ {
+					if (*root).WildCards[len((*root).WildCards)-1].Name != levels[0] {
+						break
+					}
+				}
+				if index != len((*root).WildCards) {
+					(*root).WildCards = append((*root).WildCards,
+						&RegTree{
+							Name:     levels[0],
+							RegMatch: regexp.MustCompile("^.+$"),
+							Tree:     new(Tree),
+						})
+				}
+			}
 			len := len((*root).WildCards)
 			// 正则表达式节点的递归操作, 则levels减少一级
 			return setupTree(&((*root).WildCards[len-1].Tree), levels[1:], funcId)
@@ -222,8 +286,10 @@ func printTree(tree *Tree) {
 		}
 	}
 	if tree.WildCards != nil && len(tree.WildCards) > 0 {
-		fmt.Println("wild key: ", tree.WildCards[0].Name)
-		printTree(tree.WildCards[0].Tree)
+		for index := 0; index < len(tree.WildCards); index++ {
+			fmt.Println("wild key: ", tree.WildCards[index].Name)
+			printTree(tree.WildCards[index].Tree)
+		}
 	}
 }
 
@@ -352,80 +418,104 @@ func GetFuncId(info *HttpRequestInfo) (funcId int, entityStr string, retcode int
 	return
 }
 
-// GetAllFunctions retrieves all Functions matches certain condition. Returns empty list if
-// no records exist
-func GetAllFunctions(query map[string]string, fields []string, sortby []string, order []string,
-	offset int64, limit int64) (ml []interface{}, err error) {
-	o := orm.NewOrm()
-	qs := o.QueryTable(new(Functions))
-	// query k=v
-	for k, v := range query {
-		// rewrite dot-notation to Object__Attribute
-		k = strings.Replace(k, ".", "__", -1)
-		if strings.Contains(k, "isnull") {
-			qs = qs.Filter(k, (v == "true" || v == "1"))
-		} else {
-			qs = qs.Filter(k, v)
-		}
+// 根据HTTP方法类型，获取方法名称
+func GetMethodNameByType(methodType int) (methodName string) {
+	Logger.Info("[%v] enter GetMethodNameByType.", methodType)
+	defer Logger.Info("[%v] left GetMethodNameByType.", methodType)
+	switch methodType {
+	case METHOD_TYPE_GET:
+		methodName = "GET"
+	case METHOD_TYPE_POST:
+		methodName = "POST"
+	case METHOD_TYPE_PUT:
+		methodName = "PUT"
+	case METHOD_TYPE_PATCH:
+		methodName = "PATCH"
+	case METHOD_TYPE_DELETE:
+		methodName = "DELETE"
+	default:
+		methodName = "unkown"
 	}
-	// order by:
-	var sortFields []string
-	if len(sortby) != 0 {
-		if len(sortby) == len(order) {
-			// 1) for each sort field, there is an associated order
-			for i, v := range sortby {
-				orderby := ""
-				if order[i] == "desc" {
-					orderby = "-" + v
-				} else if order[i] == "asc" {
-					orderby = v
-				} else {
-					return nil, errors.New("Error: Invalid order. Must be either [asc|desc]")
-				}
-				sortFields = append(sortFields, orderby)
-			}
-			qs = qs.OrderBy(sortFields...)
-		} else if len(sortby) != len(order) && len(order) == 1 {
-			// 2) there is exactly one order, all the sorted fields will be sorted by this order
-			for _, v := range sortby {
-				orderby := ""
-				if order[0] == "desc" {
-					orderby = "-" + v
-				} else if order[0] == "asc" {
-					orderby = v
-				} else {
-					return nil, errors.New("Error: Invalid order. Must be either [asc|desc]")
-				}
-				sortFields = append(sortFields, orderby)
-			}
-		} else if len(sortby) != len(order) && len(order) != 1 {
-			return nil, errors.New("Error: 'sortby', 'order' sizes mismatch or 'order' size is not 1")
-		}
-	} else {
-		if len(order) != 0 {
-			return nil, errors.New("Error: unused 'order' fields")
-		}
-	}
+	return
+}
 
-	var l []Functions
-	qs = qs.OrderBy(sortFields...)
-	if _, err = qs.Limit(limit, offset).All(&l, fields...); err == nil {
-		if len(fields) == 0 {
-			for _, v := range l {
-				ml = append(ml, v)
-			}
-		} else {
-			// trim unused fields
-			for _, v := range l {
-				m := make(map[string]interface{})
-				val := reflect.ValueOf(v)
-				for _, fname := range fields {
-					m[fname] = val.FieldByName(fname).Interface()
-				}
-				ml = append(ml, m)
+// 根据HTTP方法名，获取方法类型
+func GetMethodTypeByName(methodName string) (methodType int) {
+	Logger.Info("[%v] enter GetMethodTypeByName.", methodName)
+	defer Logger.Info("[%v] left GetMethodTypeByName.", methodName)
+	switch methodName {
+	case "POST":
+		methodType = METHOD_TYPE_POST
+	case "GET":
+		methodType = METHOD_TYPE_GET
+	case "PUT":
+		methodType = METHOD_TYPE_PUT
+	case "PATCH":
+		methodType = METHOD_TYPE_PATCH
+	case "DELETE":
+		methodType = METHOD_TYPE_DELETE
+	default:
+		methodType = -1
+	}
+	return
+}
+
+type FunctionInfos struct {
+	Id     int    `json:"function_id"`
+	Method string `json:"method"`
+	Name   string `json:"name"`
+	Uri    string `json:"uri"`
+}
+
+// 获取功能列表与搜索
+// 搜索支持：名称和URI
+func GetFunctions(pageIndex int64, pageSize int64, searchKey string) (funcInfos []*FunctionInfos, count int64, realCount int64, retcode int, err error) {
+	Logger.Info("[%v] enter GetFunctions.", searchKey)
+	defer Logger.Info("[%v] left GetFunctions.", searchKey)
+	var (
+		functions []*Functions
+	)
+	funcInfos = []*FunctionInfos{}
+	cond := orm.NewCondition()
+	o := orm.NewOrm()
+	qs := o.QueryTable((&Functions{}).TableName()).Filter("status", utils.STATUS_VALID)
+	if strings.TrimSpace(searchKey) != "" {
+		qs = qs.SetCond(cond.Or("name__icontains", searchKey).Or("uri__icontains", searchKey))
+	}
+	count, _ = qs.Count()
+	if realCount, err = qs.Limit(pageSize, pageSize*pageIndex).All(&functions); err != nil {
+		err = errors.Wrap(err, "GetFunctions")
+		retcode = utils.DB_READ_ERROR
+		return
+	}
+	for index := 0; index < int(realCount); index++ {
+		funcInfos = append(funcInfos, &FunctionInfos{
+			Id:     functions[index].Id,
+			Method: GetMethodNameByType(int(functions[index].MethodType)),
+			Name:   functions[index].Name,
+			Uri:    functions[index].Uri,
+		})
+	}
+	return
+}
+
+// 解析获取thid_region_mark_key
+// eg. /v1/storages/warehouses/:id/invalid -> :id
+// 错误判断，如果不是以'/'开头，则返回错误
+func GetThirdReginMarkKey(uri string) (markKey string, retcode int, err error) {
+	if strings.TrimSpace(uri) == "" && strings.HasPrefix(uri, "/") {
+		err = errors.New("param `uri` can't be empty , and prefix '/'")
+		retcode = utils.SOURCE_DATA_ILLEGAL
+		return
+	}
+	fields := strings.Split(uri, "/")
+	if fields != nil && len(fields) > 0 {
+		for index := 1; index < len(fields); index++ {
+			if strings.HasPrefix(fields[index], ":") {
+				markKey = fields[index]
+				return
 			}
 		}
-		return ml, nil
 	}
-	return nil, err
+	return
 }
