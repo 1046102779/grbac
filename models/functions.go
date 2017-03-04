@@ -264,38 +264,87 @@ func LoadMapTree() (err error) {
 	return
 }
 
+type Stack struct {
+	elems []*string
+}
+
+func (t *Stack) Push(elem string) {
+	if strings.TrimSpace(elem) == "" {
+		return
+	}
+	t.elems = append(t.elems, &elem)
+	return
+}
+
+func (t *Stack) Pop() (elem string, err error) {
+	if t.elems == nil || len(t.elems) <= 0 {
+		err = errors.Wrap(err, "no element in stack")
+		return
+	}
+	elem = *t.elems[len(t.elems)-1]
+	t.elems = append(t.elems[:len(t.elems)-1])
+	return
+}
+
+func (t *Stack) Print(sep string, funcId int) {
+	if t.elems == nil || len(t.elems) <= 0 {
+		return
+	}
+	for index := 0; t.elems != nil && index < len(t.elems); index++ {
+		if index == len(t.elems)-1 {
+			fmt.Printf("%s", *t.elems[index])
+		} else {
+			fmt.Printf("%s%s", *t.elems[index], sep)
+		}
+	}
+	fmt.Printf("	=    %d\n", funcId)
+	return
+}
+
+func (t *Stack) PrintDeTree(leaf string, sep string, funcId int) {
+	t.Push(leaf)
+	t.Print(sep, funcId)
+	if _, err := t.Pop(); err != nil {
+		Logger.Error(err.Error())
+		return
+	}
+	return
+}
+
 // 深度遍历树
-func printTree(tree *Tree) {
+func printTree(tree *Tree, stack *Stack) {
 	if tree == nil {
 		return
 	}
 	if tree.Leaf != nil {
 		for index := 0; index < len(tree.Leaf); index++ {
 			for key, value := range tree.Leaf[index].LeafFixMap {
-				fmt.Println("key: "+key+" , funcId: ", value)
+				stack.PrintDeTree(key, "/", value)
 			}
 			if len(tree.Leaf[index].LeafWildCards) > 0 {
-				fmt.Println("name: "+tree.Leaf[index].LeafWildCards[0].Name+" | funcId: ", tree.Leaf[index].LeafWildCards[0].Value)
+				stack.PrintDeTree(tree.Leaf[index].LeafWildCards[0].Name, "/", tree.Leaf[index].LeafWildCards[0].Value)
 			}
 		}
 	}
 	if tree.FixMap != nil {
 		for key, value := range tree.FixMap {
-			fmt.Println("fix key: ", key)
+			stack.Push(key, stack)
 			printTree(value)
 		}
 	}
 	if tree.WildCards != nil && len(tree.WildCards) > 0 {
 		for index := 0; index < len(tree.WildCards); index++ {
-			fmt.Println("wild key: ", tree.WildCards[index].Name)
-			printTree(tree.WildCards[index].Tree)
+			stack.Push(tree.WildCards[index].Name)
+			printTree(tree.WildCards[index].Tree, stack)
 		}
 	}
+	stack.Pop()
 }
 
 // 打印树
 func PrintTree() {
 	for key, _ := range RootMap {
+		stack := new(Stack)
 		printTree(RootMap[key])
 	}
 }

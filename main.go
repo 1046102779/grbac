@@ -44,7 +44,7 @@ func main() {
 		Logger.Error(err.Error())
 	}
 	// 打印初始化的树
-	//	PrintTree()
+	models.PrintTree()
 
 	// 对于存储在Redis集群中的数据，一般情况下，只需要加载一次
 	// 以后重启权限服务，不需要再次加载
