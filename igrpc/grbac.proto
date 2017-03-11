@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package igrpc;
+
+import "common.proto";
+
+message UserRole {
+    int32 UserRoleId = 1;
+    int32 UserId = 2;
+    int32 RoleId = 3;
+    int32 RegionId = 4;
+    int32 Status = 5;
+}
+
+
+message Role {
+    int32 RoleId = 1;
+    int32 RegionId = 2;
+    string Code = 3;
+    string Name = 4;
+    int32 Status = 5;
+}
+
+service RbacGrpc {
+    rpc AddUserRole(UserRole) returns (UserRole);
+    rpc DelUserRole(UserRole) returns (UserRole);
+    rpc GetRoleByRoleCode(String) returns (Role);
+}
+

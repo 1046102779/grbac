@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package igrpc;
+
+message Reply {
+    int64 ErrCode = 1;
+    string ErrMsg = 2;
+}
+
+message Integer32 {
+    sint32 Value = 1;
+}
+
+message Integer64 {
+    sint64 Value = 1;
+}
+
+message String {
+    string Value = 1;
+}
+
+message Bool {
+    bool Value = 1;
+}
+
+message KeyValue {
+    string Key =1;
+    string Value = 2;
+}

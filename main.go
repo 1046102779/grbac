@@ -40,7 +40,7 @@ func main() {
 		beego.BConfig.WebConfig.StaticDir["/swagger"] = "swagger"
 	}
 	// 1. 加载路由树数据
-	if err := LoadMapTree(); err != nil {
+	if err := models.LoadMapTree(); err != nil {
 		Logger.Error(err.Error())
 	}
 	// 打印初始化的树

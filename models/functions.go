@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	utils "github.com/1046102779/common"
+	"github.com/1046102779/grbac/common/consts"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/astaxie/beego/orm"
 	"github.com/pkg/errors"
@@ -38,12 +38,11 @@ func (t *Functions) ReadFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
 	defer Logger.Info("[%v] left ReadFunctionNoLock.", t.Id)
 	if o == nil {
 		err = errors.New("param `orm.Ormer` ptr empty")
-		retcode = utils.SOURCE_DATA_ILLEGAL
-		return
+		retcode = consts.ERROR_CODE__PARAM__ILLEGAL
 	}
 	if err = (*o).Read(t); err != nil {
 		err = errors.Wrap(err, "ReadFunctionNoLock")
-		retcode = utils.DB_READ_ERROR
+		retcode = consts.ERROR_CODE__DB__READ
 		return
 	}
 	return
@@ -54,12 +53,12 @@ func (t *Functions) UpdateFunctionNoLock(o *orm.Ormer) (retcode int, err error) 
 	defer Logger.Info("[%v] left ModifyFunctionNoLock.", t.Id)
 	if o == nil {
 		err = errors.New("param `orm.Ormer` ptr empty")
-		retcode = utils.SOURCE_DATA_ILLEGAL
+		retcode = consts.ERROR_CODE__PARAM__ILLEGAL
 		return
 	}
 	if _, err = (*o).Update(t); err != nil {
 		err = errors.Wrap(err, "ModifyFunctionNoLock")
-		retcode = utils.DB_UPDATE_ERROR
+		retcode = consts.ERROR_CODE__DB__READ
 		return
 	}
 	return
@@ -70,12 +69,12 @@ func (t *Functions) InsertFunctionNoLock(o *orm.Ormer) (retcode int, err error) 
 	defer Logger.Info("[%v] left InsertFunctionNoLock.", t.Uri)
 	if o == nil {
 		err = errors.New("param `orm.Ormer` ptr empty")
-		retcode = utils.SOURCE_DATA_ILLEGAL
+		retcode = consts.ERROR_CODE__PARAM__ILLEGAL
 		return
 	}
 	if _, err = (*o).Insert(t); err != nil {
 		err = errors.Wrap(err, "InsertFunctionNoLock")
-		retcode = utils.DB_INSERT_ERROR
+		retcode = consts.ERROR_CODE__DB__INSERT
 		return
 	}
 	return
@@ -136,7 +135,7 @@ func getAllFunctions() (funcs []Functions, err error) {
 	defer Logger.Info("left getAllFunctions.")
 	funcs = []Functions{}
 	o := orm.NewOrm()
-	_, err = o.QueryTable((&Functions{}).TableName()).Filter("status", utils.STATUS_VALID).All(&funcs)
+	_, err = o.QueryTable((&Functions{}).TableName()).Filter("status", consts.STATUS_VALID).All(&funcs)
 	if err != nil {
 		err = errors.Wrap(err, "getAllFunctions")
 		return
@@ -446,8 +445,11 @@ func GetFuncId(info *HttpRequestInfo) (funcId int, entityStr string, retcode int
 	)
 	if uri, err = url.Parse(info.Uri); err != nil {
 		err = errors.Wrap(err, "GetFuncId")
-		retcode = utils.JSON_PARSE_FAILED
+		retcode = consts.ERROR_CODE__JSON__PARSE_FAILED
 		return
+	}
+	if uri.Path[len(uri.Path)-1] == '/' {
+		uri.Path = uri.Path[0 : len(uri.Path)-1]
 	}
 	// 解析path，在解析树中验证一把path，看是否能取出功能ID
 	if funcId, entityStr, retcode, err = getFuncId(strings.Split(uri.Path, "/")[1:], info.Method); err != nil {
@@ -527,14 +529,14 @@ func GetFunctions(pageIndex int64, pageSize int64, searchKey string) (funcInfos 
 	funcInfos = []*FunctionInfos{}
 	cond := orm.NewCondition()
 	o := orm.NewOrm()
-	qs := o.QueryTable((&Functions{}).TableName()).Filter("status", utils.STATUS_VALID)
+	qs := o.QueryTable((&Functions{}).TableName()).Filter("status", consts.STATUS_VALID)
 	if strings.TrimSpace(searchKey) != "" {
 		qs = qs.SetCond(cond.Or("name__icontains", searchKey).Or("uri__icontains", searchKey))
 	}
 	count, _ = qs.Count()
 	if realCount, err = qs.Limit(pageSize, pageSize*pageIndex).All(&functions); err != nil {
 		err = errors.Wrap(err, "GetFunctions")
-		retcode = utils.DB_READ_ERROR
+		retcode = consts.ERROR_CODE__DB__READ
 		return
 	}
 	for index := 0; index < int(realCount); index++ {
@@ -554,7 +556,7 @@ func GetFunctions(pageIndex int64, pageSize int64, searchKey string) (funcInfos 
 func GetThirdReginMarkKey(uri string) (markKey string, retcode int, err error) {
 	if strings.TrimSpace(uri) == "" && strings.HasPrefix(uri, "/") {
 		err = errors.New("param `uri` can't be empty , and prefix '/'")
-		retcode = utils.SOURCE_DATA_ILLEGAL
+		retcode = consts.ERROR_CODE__PARAM__ILLEGAL
 		return
 	}
 	fields := strings.Split(uri, "/")

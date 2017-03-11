@@ -5,12 +5,20 @@ import (
 	"net/url"
 	"strings"
 
+	redis "gopkg.in/redis.v5"
+
+	"github.com/1046102779/grbac/common/utils"
+	"github.com/smallnest/rpcx"
+
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
+	AccountClient     *rpcx.Client
+	EtcdAddr, RpcAddr string
+	Servers           []string
 	// db::mysql
 	DBHost    string
 	DBPort    int
@@ -22,9 +30,60 @@ var (
 	DBMaxIdle int
 	DBMaxConn int
 	DBDebug   bool
+
+	// redis
+	Redis__Address  string
+	Redis__Password string
+	Redis__Db       int
+
+	Redis__Client *utils.RedisV5Client
 )
 
-func init() {
+func initRpcEnv() {
+	EtcdAddr = strings.TrimSpace(beego.AppConfig.String("etcd::address"))
+	RpcAddr = strings.TrimSpace(beego.AppConfig.String("rpc::address"))
+	if EtcdAddr == "" || RpcAddr == "" {
+		panic("params `etcd::address || rpc::address` empty")
+	}
+	serverTemp := beego.AppConfig.String("rpc::servers")
+	Servers = strings.Split(serverTemp, ",")
+	return
+}
+func initRedis() {
+	var (
+		err error
+	)
+
+	Redis__Address = beego.AppConfig.String("redis::address")
+	if "" == Redis__Address {
+		panic("parameter `redis::address` empty")
+	}
+
+	Redis__Password = beego.AppConfig.String("redis::password")
+	if "" == Redis__Password {
+		panic("parameter `redis::password` empty")
+	}
+
+	Redis__Db, err = beego.AppConfig.Int("redis::db")
+	if err != nil {
+		panic("parameter `redis::db` error")
+	}
+
+	Redis__Client = &utils.RedisV5Client{
+		Options: &redis.Options{
+			Addr:     Redis__Address,
+			Password: Redis__Password,
+			DB:       Redis__Db,
+		},
+	}
+
+	if err = Redis__Client.Conn(); err != nil {
+		panic(err)
+	}
+
+}
+
+func initDB() {
 	var (
 		err error
 	)
@@ -77,8 +136,16 @@ func init() {
 	if err != nil {
 		panic("err: " + err.Error())
 	}
+
+	return
+}
+
+func init() {
+	initRedis()
+	initDB()
+	initRpcEnv()
 	// orm debug
-	DBDebug, err = beego.AppConfig.Bool("dev::debug")
+	DBDebug, err := beego.AppConfig.Bool("dev::debug")
 	if err != nil {
 		panic("app parameter `dev::debug` error:" + err.Error())
 	}
@@ -87,6 +154,4 @@ func init() {
 	}
 
 	fmt.Println("conf init end")
-
-	return
 }

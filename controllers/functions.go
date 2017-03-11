@@ -12,8 +12,10 @@ import (
 	"strings"
 	"time"
 
-	utils "github.com/1046102779/common"
-	. "github.com/1046102779/common/utils"
+	"git.kissdata.com/ycfm/sms/conf"
+
+	"github.com/1046102779/grbac/common/consts"
+	"github.com/1046102779/grbac/common/utils"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/1046102779/grbac/models"
 	"github.com/astaxie/beego"
@@ -45,14 +47,15 @@ func (t *FunctionsController) GetFuncId() {
 	if err = jsoniter.Unmarshal(t.Ctx.Input.RequestBody, info); err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_code": consts.ERROR_CODE__PARAM__ILLEGAL,
 			"err_msg":  errors.Cause(err).Error(),
 		}
 		t.ServeJSON()
 		return
 	}
 	// 获取user_id和company_id
-	if info, retcode, err := GetHeaderParams(t.Ctx.Request); err != nil {
+	companyId, retcode, err = utils.GetCompanyIdFromHeader(t.Ctx.Request)
+	if err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
 			"err_code": retcode,
@@ -60,19 +63,17 @@ func (t *FunctionsController) GetFuncId() {
 		}
 		t.ServeJSON()
 		return
-	} else if info != nil && info.CompanyId > 0 {
-		companyId = info.CompanyId
-		userId = info.UserId
-	} else {
-		err := errors.New("please login homepage")
+	}
+	userId, retcode, err = utils.GetUserIdFromHeader(t.Ctx.Request)
+	if err != nil {
+		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.USER_LOGGED_IN,
+			"err_code": retcode,
 			"err_msg":  errors.Cause(err).Error(),
 		}
 		t.ServeJSON()
 		return
 	}
-	fmt.Println("info: ", *info)
 	// 1. 先判断URL是否在白名单列表
 	// 2. 获取URL在构建树中是否存在
 	if funcId, entityStr, retcode, err = models.GetFuncId(info); err != nil {
@@ -99,7 +100,7 @@ func (t *FunctionsController) GetFuncId() {
 		} else {
 			// 判断用户ID持有的<funcId, entityId>，在<funcId, entityIds> 列表中是否有对应的entityId存在
 			// 如果有，则表示该用户有访问entityId资源的权限
-			result := RedisClient.SIsMember(fmt.Sprintf("YCFM_%d_%d", userId, funcId), companyId)
+			result := conf.Redis__Client.SIsMember(fmt.Sprintf("YCFM_%d_%d", userId, funcId), companyId)
 			if result != nil || result.Err() != nil || !result.Val() {
 				if result.Err() != nil {
 					Logger.Error(err.Error())
@@ -117,7 +118,7 @@ func (t *FunctionsController) GetFuncId() {
 		// 判断用户ID持有的funcId, 在<funcId, entityIds> 列表中对应的entityIds为空
 		// 如果为空，则表示该用户只要访问这个URI，一定会有访问权限
 		// 否则，没有访问权限
-		result := RedisClient.SIsMember(fmt.Sprintf("YCFM_%d_%d", userId, funcId), companyId)
+		result := conf.Redis__Client.SIsMember(fmt.Sprintf("YCFM_%d_%d", userId, funcId), companyId)
 		if result != nil || result.Err() != nil || !result.Val() {
 			if result.Err != nil {
 				Logger.Error(err.Error())
@@ -148,7 +149,7 @@ func (t *FunctionsController) ModifyFunction() {
 	if funcId <= 0 {
 		err := errors.New("param `:id` empty")
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_code": consts.ERROR_CODE__PARAM__ILLEGAL,
 			"err_msg":  err.Error(),
 		}
 		t.ServeJSON()
@@ -158,7 +159,7 @@ func (t *FunctionsController) ModifyFunction() {
 	if err := jsoniter.Unmarshal(t.Ctx.Input.RequestBody, funcInfo); err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.JSON_PARSE_FAILED,
+			"err_code": consts.ERROR_CODE__JSON__PARSE_FAILED,
 			"err_msg":  err.Error(),
 		}
 		t.ServeJSON()
@@ -208,7 +209,7 @@ func (t *FunctionsController) DeleteFuntion() {
 	if funcId <= 0 {
 		err := errors.New("param `:id` empty")
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_code": consts.ERROR_CODE__PARAM__ILLEGAL,
 			"err_msg":  err.Error(),
 		}
 		t.ServeJSON()
@@ -229,7 +230,7 @@ func (t *FunctionsController) DeleteFuntion() {
 		return
 	}
 	function.UpdatedAt = now
-	function.Status = utils.STATUS_DELETED
+	function.Status = consts.STATUS_DELETED
 	if retcode, err := function.UpdateFunctionNoLock(&o); err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
@@ -283,7 +284,7 @@ func (t *FunctionsController) AddFunction() {
 	if err := jsoniter.Unmarshal(t.Ctx.Input.RequestBody, functionInfo); err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.JSON_PARSE_FAILED,
+			"err_code": consts.ERROR_CODE__JSON__PARSE_FAILED,
 			"err_msg":  errors.Cause(err).Error(),
 		}
 		t.ServeJSON()
@@ -308,7 +309,7 @@ func (t *FunctionsController) AddFunction() {
 		MethodType:         int16(models.GetMethodTypeByName(functionInfo.Method)),
 		Name:               functionInfo.Name,
 		ThirdRegionMarkKey: markKey,
-		Status:             utils.STATUS_VALID,
+		Status:             consts.STATUS_VALID,
 		UpdatedAt:          now,
 		CreatedAt:          now,
 	}
@@ -317,7 +318,7 @@ func (t *FunctionsController) AddFunction() {
 	if err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.DB_READ_ERROR,
+			"err_code": consts.ERROR_CODE__DB__READ,
 			"err_msg":  err.Error(),
 		}
 		t.ServeJSON()
@@ -326,7 +327,7 @@ func (t *FunctionsController) AddFunction() {
 	if count > 0 {
 		err = errors.New("`" + functionInfo.Method + "-" + functionInfo.Uri + "` already exist")
 		t.Data["json"] = map[string]interface{}{
-			"err_code": utils.SOURCE_DATA_ILLEGAL,
+			"err_code": consts.ERROR_CODE__PARAM__ILLEGAL,
 			"err_msg":  errors.Cause(err).Error(),
 		}
 		t.ServeJSON()

@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/astaxie/beego/orm"
+	"github.com/pkg/errors"
 
-	utils "github.com/1046102779/common"
+	"github.com/1046102779/grbac/common/consts"
+	"github.com/1046102779/grbac/conf"
+	pb "github.com/1046102779/grbac/igrpc"
 	. "github.com/1046102779/grbac/logger"
-	pb "github.com/1046102779/igrpc"
 )
 
 type GrbacServer struct{}
@@ -37,7 +39,7 @@ func (t *GrbacServer) LoadGrbacUserRel(in *pb.GrbacUserRel, out *pb.GrbacUserRel
 			Logger.Error(err.Error())
 		}
 		for subIndex := 0; funcIds != nil && subIndex < len(funcIds); subIndex++ {
-			utils.RedisClient.SAdd(fmt.Sprintf("YCFM_%d_%d", in.UserId, funcIds[index]), in.CompanyId)
+			conf.Redis__Client.SAdd(fmt.Sprintf("YCFM_%d_%d", in.UserId, funcIds[index]), in.CompanyId)
 		}
 	}
 	return
@@ -72,10 +74,10 @@ func (t *GrbacServer) ModifyUserRole(in *pb.GrbacUserRel, out *pb.GrbacUserRel) 
 		// 不存在，则添加用户与角色关系记录
 		now := time.Now()
 		o := orm.NewOrm()
-		userRole := &UserRoles{
+		userRole := &UserRole{
 			UserId:    int(in.UserId),
 			RoleId:    roleId,
-			Status:    utils.STATUS_VALID,
+			Status:    consts.STATUS_VALID,
 			UpdatedAt: now,
 			CreatedAt: now,
 		}
@@ -84,5 +86,84 @@ func (t *GrbacServer) ModifyUserRole(in *pb.GrbacUserRel, out *pb.GrbacUserRel) 
 			return
 		}
 	}
+	return
+}
+
+func (s *GrbacServer) AddUserRole(in *pb.UserRole, out *pb.UserRole) (err error) {
+	defer func() { err = nil }()
+	var userRoleId int = 0
+	if userRoleId, _, err = AddUserRole(int(in.UserId), int(in.RoleId)); err != nil {
+		err = errors.Wrap(err, "AddUserRole, GrbacServer")
+		return
+	}
+
+	out = in
+	out.UserRoleId = int32(userRoleId)
+	return
+}
+
+func (s *GrbacServer) DelUserRole(in *pb.UserRole, out *pb.UserRole) (err error) {
+	Logger.Info("[%v.%v] enter DelUserRole.", in.UserId, in.RoleId)
+	defer Logger.Info("[%v.%v] enter DelUserRole.", in.UserId, in.RoleId)
+	defer func() { err = nil }()
+	var (
+		userRole *UserRole
+		roleIds  []int // 用户在角色ID列表
+		funcIds  []int // 用户在功能ID列表
+	)
+	o := orm.NewOrm()
+	now := time.Now()
+	userRole, _, err = GetUserRoleByRoleIdAndUserId(int(in.UserId), int(in.RoleId))
+	if err != nil {
+		err = errors.Wrap(err, "DelUserRole")
+		return
+	}
+	if userRole != nil && userRole.UserRoleId > 0 {
+		// 删除redis中的key
+		if roleIds, _, err = GetRoleIdsByUserId(int(in.UserId)); err != nil {
+			Logger.Error(err.Error())
+			return
+		}
+		for index := 0; roleIds != nil && index < len(roleIds); index++ {
+			funcIds, _, err = GetFuncIdsByRoleId(roleIds[index])
+			if err != nil {
+				Logger.Error(err.Error())
+			}
+			for subIndex := 0; funcIds != nil && subIndex < len(funcIds); subIndex++ {
+				err = conf.Redis__Client.Del(fmt.Sprintf("YCFM_%d_%d", in.UserId, funcIds[subIndex]))
+				if err != nil {
+					Logger.Error(err.Error())
+				}
+			}
+		}
+		userRole.Status = consts.STATUS_DELETED
+		userRole.UpdatedAt = now
+		if _, err = userRole.UpdateUserRoleNoLock(&o); err != nil {
+			err = errors.Wrap(err, "DelUserRole")
+			return
+		}
+	}
+	out = in
+	return
+}
+
+func (s *GrbacServer) GetRoleByRoleCode(in *pb.String, out *pb.Role) (err error) {
+	defer func() { err = nil }()
+	code := in.Value
+
+	role := Role{}
+	if role, _, err = GetRoleByRoleCode(code, nil); err != nil {
+		err = errors.Wrap(err, "GetRoleByRoleCode, GrbacServer")
+		return
+	}
+
+	out = &pb.Role{
+		RoleId:   int32(role.RoleId),
+		RegionId: int32(role.RegionId),
+		Code:     role.Code,
+		Name:     role.Name,
+		Status:   int32(role.Status),
+	}
+
 	return
 }

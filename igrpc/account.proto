@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package igrpc;
+
+import "common.proto";
+
+message User {
+    int64 UserId = 1;
+    int64 Type = 2;
+    int64 RelOrgId = 3;
+    int64 SubType = 4;
+    string Code = 5;
+    string Name = 6;
+    int64 CompanyId = 7;
+    Reply Response = 8;
+    string Mobile = 9;
+    string CompanyName = 10;
+}
+
+message UserInfo {
+    int32 UserId = 1;
+    int32 Type = 2;
+    int32 RelOrgId = 3;
+    int32 SubType = 4;
+    string Code = 5;
+    string Name = 6;
+    string Email = 7;
+    string Mobile = 9;
+    string Password = 10;
+    string Desc = 11;
+    int32 Status = 12;
+}
+
+message Users{
+    repeated User Users = 1;
+}
+
+message Company {
+    int32 CompanyId = 1;
+    string Name = 2;
+    Reply Response = 3;
+}
+
+message CompanyIds {
+    repeated int64 CompanyId = 1;
+}
+
+service AccountGrpc {
+    //rpc GetCompanyByCompanyId(Company) returns (Company);
+    rpc GetCompanyNameByCompanyId(Integer32) returns (String);
+    rpc AddUser(UserInfo) returns (UserInfo);
+}
+
+// 指定公司库存启用状态
+message StorageEnableInfo {
+    int64 CompanyId = 1;
+    string Name = 2;
+    bool IsEnabled = 3;
+}
+
+// 商铺地点信息
+message ShopInfo {
+    int64 Id = 1;
+    string Code = 2;
+    string Name = 3;
+}
+
+// 该结构体既作为短信增量变化，也作为平台短信数量, 即为复用
+message ChuanglanSmsInfo {
+    int64 PlatformVerificationCount =1;
+    int64 PlatformMarketingCount = 2;
+    int64 CompanySmsRemainingCount = 3;
+    int64 CompanyId =4;
+}
+
+message ChuanglanConfInfo {
+    string HttpApi = 1;
+    string QueryBalanceHttpApi = 2;
+    string VerificationAccount = 3;
+    string VerificationPassword = 4;
+    string MarketingAccount = 5;
+    string MarketingPassword = 6;
+    string ReceiverHttpApi = 7;
+}
+
+message YunpianConfInfo {
+    string SingleApiKey  =1;
+    string GroupApiKey = 2;
+    string HttpApi =3;
+    string ReceiverHttpApi = 4;
+}
+
+// SaaS平台短信充值信息
+message SmsRechargeInfo {
+    int64 Money = 1;
+    string TradeNo = 2;
+    string Openid =3;
+    string Title = 4;
+    int64 OfficialAccountId = 5;
+}
+
+// 面料支付参数信息
+message FabricPatternPayInfo {
+    int64 Money = 1;
+    string TradeNo = 2;
+    string Title = 3;
+    int64 OfficialAccountId = 4;
+    string TransactionId = 5; // 微信公众号平台支付ID
+}
+
+// 微信公众号JSAPI支付参数
+message WechatJSAPIParamInfo {
+    string AppId =1;
+    string TimeStamp=2;
+    string NonceStr =3;
+    string Package = 4;
+    string SignType = 5;
+    string PaySign = 6;
+}
+
+// 微信公众号Native支付参数
+message WechatNativeParamInfo {
+    string CodeUrl =1;
+}
+
+// 通过公司ID和用户ID获取用户openid
+message UserOpenidInfo {
+    int64 UserId = 1;
+    int64 CompanyId =2;
+    string Openid = 3;
+}
+
+// 权限模块
+// 用户登录后，构建shiro三元表<用户ID-功能ID，实体ID集合={公司ID}>
+message GrbacUserRel {
+    int64 UserId = 1;
+    int64 CompanyId = 2;
+    string Code  = 3; // 账户模块position职位编码
+}
+
+// 用于公司ID与总经理列表， 当天营业额统计报表
+message GrbacUserRels {
+    repeated GrbacUserRel GrbacUserRels = 1;
+}
+
+// 公众号与公司关系消息体
+message CompanyAndOfficialAccountRel {
+    int64 CompanyId = 1;
+    int64 OfficialAccountId  = 2;
+}

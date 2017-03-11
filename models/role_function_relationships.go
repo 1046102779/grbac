@@ -1,11 +1,10 @@
 package models
 
 import (
-	"reflect"
 	"strings"
 	"time"
 
-	utils "github.com/1046102779/common"
+	"github.com/1046102779/grbac/common/consts"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/astaxie/beego/orm"
 	"github.com/pkg/errors"
@@ -25,8 +24,92 @@ func (t *RoleFunctionRelationships) TableName() string {
 	return "role_function_relationships"
 }
 
+func (t *RoleFunctionRelationships) ReadRoleFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v] enter ReadRoleFunctionNoLock.", t.Id)
+	defer Logger.Info("[%v] left ReadRoleFunctionNoLock.", t.Id)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = consts.ERROR_CODE__SOURCE_DATA__ILLEGAL
+		return
+	}
+	if err = (*o).Read(t); err != nil {
+		err = errors.Wrap(err, "ReadRoleFunctionNoLock")
+		retcode = consts.ERROR_CODE__DB__READ
+		return
+	}
+	return
+}
+
+func (t *RoleFunctionRelationships) UpdateRoleFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v] enter UpdateRoleFunctionNoLock.", t.Id)
+	defer Logger.Info("[%v] left UpdateRoleFunctionNoLock.", t.Id)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = consts.ERROR_CODE__SOURCE_DATA__ILLEGAL
+		return
+	}
+	if _, err = (*o).Update(t); err != nil {
+		err = errors.Wrap(err, "UpdateRoleFunctionNoLock")
+		retcode = consts.ERROR_CODE__DB__UPDATE
+		return
+	}
+	return
+}
+
+func (t *RoleFunctionRelationships) InsertRoleFunctionNoLock(o *orm.Ormer) (retcode int, err error) {
+	Logger.Info("[%v.%v] enter InsertRoleFunctionNoLock.", t.RoleId, t.FunctionId)
+	defer Logger.Info("[%v.%v] left InsertRoleFunctionNoLock.", t.RoleId, t.FunctionId)
+	if o == nil {
+		err = errors.New("param `orm.Ormer` ptr empty")
+		retcode = consts.ERROR_CODE__SOURCE_DATA__ILLEGAL
+		return
+	}
+	if _, err = (*o).Insert(t); err != nil {
+		err = errors.Wrap(err, "InsertRoleFunctionNoLock")
+		retcode = consts.ERROR_CODE__DB__INSERT
+		return
+	}
+	return
+}
+
 func init() {
 	orm.RegisterModel(new(RoleFunctionRelationships))
+}
+
+func GetRoleFunctions(pageIndex int64, pageSize int64, roleId int, searchKey string) (roleFunctions []*RoleFunctionRelationships, count int64, realCount int64, retcode int, err error) {
+	Logger.Info("[%v.%v] enter GetRoleFunctions.", roleId, searchKey)
+	defer Logger.Info("[%v.%v] left GetRoleFunctions.", roleId, searchKey)
+	var (
+		functionIds []int            = []int{}
+		functions   []*FunctionInfos = []*FunctionInfos{}
+	)
+	o := orm.NewOrm()
+	qs := o.QueryTable((&RoleFunctionRelationships{}).TableName()).Filter("status", consts.STATUS_VALID)
+	if roleId > 0 {
+		qs = qs.Filter("role_id", roleId)
+	}
+	if strings.TrimSpace(searchKey) != "" {
+		// search_key可以是 功能名称或者URI
+		functions, _, _, retcode, err = GetFunctions(0, 10000, searchKey)
+		if err != nil {
+			err = errors.Wrap(err, "GetRoleFunctions")
+			return
+		}
+		for index := 0; index < len(functions); index++ {
+			functionIds = append(functionIds, functions[index].Id)
+		}
+		if len(functionIds) > 0 {
+			qs = qs.Filter("function_id__in", functionIds)
+		} else {
+			// 搜索结果为空
+			count = 0
+			realCount = 0
+			return
+		}
+	}
+	count, _ = qs.Count()
+	realCount, _ = qs.Limit(pageSize, pageIndex*pageSize).All(&roleFunctions)
+	return
 }
 
 // 根据角色ID， 获取功能ID列表
@@ -38,10 +121,10 @@ func GetFuncIdsByRoleId(id int) (funcIds []int, retcode int, err error) {
 		num       int64
 	)
 	o := orm.NewOrm()
-	num, err = o.QueryTable((&RoleFunctionRelationships{}).TableName()).Filter("role_id", id).Filter("status", utils.STATUS_VALID).All(&roleFuncs)
+	num, err = o.QueryTable((&RoleFunctionRelationships{}).TableName()).Filter("role_id", id).Filter("status", consts.STATUS_VALID).All(&roleFuncs)
 	if err != nil {
 		err = errors.Wrap(err, "GetFuncIdsByRoleId")
-		retcode = utils.DB_READ_ERROR
+		retcode = consts.ERROR_CODE__DB__READ
 		return
 	}
 	if num > 0 {
@@ -50,82 +133,4 @@ func GetFuncIdsByRoleId(id int) (funcIds []int, retcode int, err error) {
 		}
 	}
 	return
-}
-
-// GetAllRoleFunctionRelationships retrieves all RoleFunctionRelationships matches certain condition. Returns empty list if
-// no records exist
-func GetAllRoleFunctionRelationships(query map[string]string, fields []string, sortby []string, order []string,
-	offset int64, limit int64) (ml []interface{}, err error) {
-	o := orm.NewOrm()
-	qs := o.QueryTable(new(RoleFunctionRelationships))
-	// query k=v
-	for k, v := range query {
-		// rewrite dot-notation to Object__Attribute
-		k = strings.Replace(k, ".", "__", -1)
-		if strings.Contains(k, "isnull") {
-			qs = qs.Filter(k, (v == "true" || v == "1"))
-		} else {
-			qs = qs.Filter(k, v)
-		}
-	}
-	// order by:
-	var sortFields []string
-	if len(sortby) != 0 {
-		if len(sortby) == len(order) {
-			// 1) for each sort field, there is an associated order
-			for i, v := range sortby {
-				orderby := ""
-				if order[i] == "desc" {
-					orderby = "-" + v
-				} else if order[i] == "asc" {
-					orderby = v
-				} else {
-					return nil, errors.New("Error: Invalid order. Must be either [asc|desc]")
-				}
-				sortFields = append(sortFields, orderby)
-			}
-			qs = qs.OrderBy(sortFields...)
-		} else if len(sortby) != len(order) && len(order) == 1 {
-			// 2) there is exactly one order, all the sorted fields will be sorted by this order
-			for _, v := range sortby {
-				orderby := ""
-				if order[0] == "desc" {
-					orderby = "-" + v
-				} else if order[0] == "asc" {
-					orderby = v
-				} else {
-					return nil, errors.New("Error: Invalid order. Must be either [asc|desc]")
-				}
-				sortFields = append(sortFields, orderby)
-			}
-		} else if len(sortby) != len(order) && len(order) != 1 {
-			return nil, errors.New("Error: 'sortby', 'order' sizes mismatch or 'order' size is not 1")
-		}
-	} else {
-		if len(order) != 0 {
-			return nil, errors.New("Error: unused 'order' fields")
-		}
-	}
-
-	var l []RoleFunctionRelationships
-	qs = qs.OrderBy(sortFields...)
-	if _, err = qs.Limit(limit, offset).All(&l, fields...); err == nil {
-		if len(fields) == 0 {
-			for _, v := range l {
-				ml = append(ml, v)
-			}
-		} else {
-			// trim unused fields
-			for _, v := range l {
-				m := make(map[string]interface{})
-				val := reflect.ValueOf(v)
-				for _, fname := range fields {
-					m[fname] = val.FieldByName(fname).Interface()
-				}
-				ml = append(ml, m)
-			}
-		}
-		return ml, nil
-	}
-	return nil, err
 }

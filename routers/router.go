@@ -16,21 +16,9 @@ import (
 func init() {
 	ns := beego.NewNamespace("/v1/grbac",
 
-		beego.NSNamespace("/entities",
-			beego.NSInclude(
-				&controllers.EntitiesController{},
-			),
-		),
-
 		beego.NSNamespace("/functions",
 			beego.NSInclude(
 				&controllers.FunctionsController{},
-			),
-		),
-
-		beego.NSNamespace("/regions",
-			beego.NSInclude(
-				&controllers.RegionsController{},
 			),
 		),
 
