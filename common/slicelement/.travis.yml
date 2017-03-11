@@ -1,0 +1,10 @@
+language: go 
+
+go: 
+    - 1.7
+  
+install:
+    - go get -v -u github.com/pkg/errors
+
+script:
+  - go test 

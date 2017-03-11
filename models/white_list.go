@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"git.kissdata.com/ycfm/common/utils"
-
 	"github.com/1046102779/grbac/common/consts"
+	"github.com/1046102779/grbac/common/utils"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/astaxie/beego/orm"
 	"github.com/pkg/errors"

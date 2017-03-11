@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.kissdata.com/ycfm/common/consts"
+	"github.com/1046102779/grbac/common/consts"
 
 	"github.com/astaxie/beego/session"
 	"github.com/pkg/errors"
