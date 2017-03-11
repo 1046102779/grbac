@@ -1,0 +1,16 @@
+language: go
+
+go:
+    - 1.7
+
+install:
+    - go get -v -u ./...
+
+script:
+    - go build && go install
+
+notifications:
+    email:
+        recipients: cdh_cjx@163.com
+        on_success: change
+        on_failure: always
