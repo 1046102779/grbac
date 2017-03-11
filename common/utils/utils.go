@@ -22,7 +22,7 @@ import (
 	"time"
 
 	. "github.com/1046102779/grbac/common/consts"
-	"github.com/1046102779/grbac/common/slicelement"
+	"github.com/1046102779/slicelement"
 	"github.com/pkg/errors"
 )
 
