@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"git.kissdata.com/ycfm/sms/conf"
-
 	"github.com/1046102779/grbac/common/consts"
 	"github.com/1046102779/grbac/common/utils"
+	"github.com/1046102779/grbac/conf"
 	. "github.com/1046102779/grbac/logger"
 	"github.com/1046102779/grbac/models"
 	"github.com/astaxie/beego"
