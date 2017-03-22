@@ -193,6 +193,12 @@ func setupTree(root **Tree, levels []string, funcId int) (node **Tree) {
 		}
 	} else {
 		// 如果是叶子节点
+		for index = 0; (*root).Trees != nil && index < len((*root).Trees); index++ {
+			if (*root).Trees[index].Name == levels[0] {
+				(*root).Trees[index].Value = funcId
+				return root
+			}
+		}
 		// 如果是冒号开头，则为正则表达式
 		if strings.HasPrefix(levels[0], ":") {
 			// ::TODO  如果uri中带有如 /v1/accounts/:id(\+d)/invalid
@@ -336,7 +342,7 @@ type HttpRequestInfo struct {
 func recursiveMatchNode(trees []*Tree, fields []string) (funcId int, entityIdStr string) {
 	var index = 0
 	if trees == nil || len(trees) <= 0 || fields == nil || len(fields) <= 0 {
-		return
+		return -1, ""
 	}
 	for index = 0; index < len(trees); index++ {
 		if trees[index].RegMatch == nil && trees[index].Name == fields[0] {
