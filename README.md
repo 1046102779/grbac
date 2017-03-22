@@ -39,7 +39,8 @@ if res.status == 403 then
         ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 ```
-
+## DEMO
+![demo](grbac_demo.jpg)
 ## 说明
 
 + `希望与大家一起成长，有任何该服务运行或者代码问题，可以及时找我沟通，喜欢开源，热爱开源, 欢迎多交流`   
