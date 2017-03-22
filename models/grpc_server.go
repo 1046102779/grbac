@@ -22,8 +22,9 @@ func (t *GrbacServer) LoadGrbacUserRel(in *pb.GrbacUserRel, out *pb.GrbacUserRel
 	Logger.Info("[%v] enter LoadGrbacUserRel.", in.UserId)
 	defer Logger.Info("[%v] left LoadGrbacUserRel.", in.UserId)
 	var (
-		roleIds []int // 用户在角色ID列表
-		funcIds []int // 用户在功能ID列表
+		roleIds []int    // 用户在角色ID列表
+		funcIds []int    // 用户在功能ID列表
+		keys    []string // redis正则表达式获取的keys列表
 	)
 	defer func() {
 		err = nil
@@ -32,6 +33,16 @@ func (t *GrbacServer) LoadGrbacUserRel(in *pb.GrbacUserRel, out *pb.GrbacUserRel
 		Logger.Error(err.Error())
 		return
 	}
+	// 清空用户权限数据，然后重新建立
+	if keys, err = conf.Redis__Client.Keys(fmt.Sprintf("YCFM_%d_*", in.UserId)); err != nil {
+		Logger.Error(err.Error())
+		return
+	}
+	fmt.Println("keys: ", keys)
+	if err = conf.Redis__Client.DelKeys(keys); err != nil {
+		Logger.Error(err.Error())
+	}
+	// 重新建立
 	for index := 0; roleIds != nil && index < len(roleIds); index++ {
 		funcIds, _, err = GetFuncIdsByRoleId(roleIds[index])
 		// 添加key，三元表<用户ID-功能ID，实体ID集合={公司ID}>

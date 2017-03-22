@@ -53,6 +53,7 @@ func (s *RedisV5Client) Set(key string, value interface{}, expiration time.Durat
 func (s *RedisV5Client) Del(key string) (err error) {
 	if strings.TrimSpace(key) == "" {
 		err = errors.Wrap(errors.New("param `key` empty"), "RedisV5Client Del")
+		return
 	}
 	if err = s.Client.Del(key).Err(); err != nil {
 		err = errors.Wrap(err, "RedisV5Client Del")
@@ -63,6 +64,7 @@ func (s *RedisV5Client) Del(key string) (err error) {
 func (s *RedisV5Client) SAdd(key string, members ...interface{}) (err error) {
 	if strings.TrimSpace(key) == "" {
 		err = errors.Wrap(errors.New("param `key` empty"), "RedisV5Client SAdd")
+		return
 	}
 	if err = s.Client.SAdd(key, members...).Err(); err != nil {
 		err = errors.Wrap(err, "RedisV5Client SAdd")
@@ -71,10 +73,40 @@ func (s *RedisV5Client) SAdd(key string, members ...interface{}) (err error) {
 }
 
 func (s *RedisV5Client) SIsMember(key string, member interface{}) (boolCmd *redis.BoolCmd) {
-	/*
-		if strings.TrimSpace(key) == "" {
-			err = errors.Wrap(errors.New("param `key` empty"), "RedisV5Client SIsMember")
-		}
-	*/
 	return s.Client.SIsMember(key, member)
+}
+
+func (s *RedisV5Client) SRem(key string, members ...interface{}) (err error) {
+	if strings.TrimSpace(key) == "" {
+		err = errors.Wrap(errors.New("param `key` empty"), "RedisV5Client SRem")
+		return
+	}
+	if err = s.Client.SRem(key, members...).Err(); err != nil {
+		err = errors.Wrap(err, "RedisV5Client SRem")
+	}
+	return
+}
+
+func (s *RedisV5Client) Keys(pattern string) (keys []string, err error) {
+	if strings.TrimSpace(pattern) == "" {
+		err = errors.Wrap(errors.New("param `key` empty"), "RedisV5Client SKeys")
+		return
+	}
+	var cmd *redis.StringSliceCmd
+	if cmd = s.Client.Keys(pattern); cmd == nil {
+		return
+	}
+	return cmd.Result()
+}
+
+func (s *RedisV5Client) DelKeys(keys []string) (err error) {
+	if keys == nil || len(keys) <= 0 {
+		err = errors.Wrap(errors.New("param `keys` empty"), "RedisV5Client DelKey")
+		return
+	}
+	if err = s.Client.Del(keys...).Err(); err != nil {
+		err = errors.Wrap(err, "RedisV5Client DelKeys")
+		return
+	}
+	return
 }
