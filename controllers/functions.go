@@ -89,7 +89,7 @@ func (t *FunctionsController) GetFuncId() {
 	// 1.  -1 ,    ""    // 没有匹配到
 	// 2.  >0 ,    ""    // 找到，但是URI.PATH中没有实体ID
 	// 3.  >0 ,    !=""  // 找到，且有实体ID，但是还需要对entityStr判断，看是否可以转化为int型，否则归为第二种情况
-	if funcId == -1 && entityStr == "" {
+	if funcId <= 0 && entityStr == "" {
 		t.Ctx.Output.SetStatus(403)
 		return
 	}
