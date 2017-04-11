@@ -38,6 +38,11 @@ local res = ngx.location.capture('/v1/grbac/functions/tree_parsing', {method=ngx
 if res.status == 403 then
         ngx.exit(ngx.HTTP_FORBIDDEN)
 end
+--- 这里需要注意的地方：
+--- 当http请求头Content-type: multipart/form-data时，由于子请求继承父请求的信息，导致body无法改变
+--- 需要在nginx中location ~ /v1/grbac体中增加下面一句：
+——- `proxy_set_header   Content-Type   "application/x-www-form-urlencoded"`;
+--- 这样做body=encode才能生效
 ```
 ## DEMO
 ![demo](grbac_demo.jpg)
