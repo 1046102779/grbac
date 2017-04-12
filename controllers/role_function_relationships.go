@@ -73,8 +73,8 @@ func (t *RoleFunctionRelationshipsController) DeleteRoleFunction() {
 func (t *RoleFunctionRelationshipsController) AddRoleFunction() {
 	// Id: function id, Name: role name
 	type RoleFunctionInfo struct {
-		Id     int `json:"function_id"`
-		RoleId int `json:"role_id"`
+		Id      int   `json:"function_id"`
+		RoleIds []int `json:"role_ids"`
 	}
 	var (
 		roleFunctionInfo *RoleFunctionInfo = new(RoleFunctionInfo)
@@ -88,8 +88,8 @@ func (t *RoleFunctionRelationshipsController) AddRoleFunction() {
 		t.ServeJSON()
 		return
 	}
-	if roleFunctionInfo.Id <= 0 || roleFunctionInfo.RoleId <= 0 {
-		err := errors.New("param `function_id | role_id` empty")
+	if roleFunctionInfo.Id <= 0 || len(roleFunctionInfo.RoleIds) <= 0 {
+		err := errors.New("param `function_id | role_ids` empty")
 		t.Data["json"] = map[string]interface{}{
 			"err_code": consts.ERROR_CODE__SOURCE_DATA__ILLEGAL,
 			"err_msg":  errors.Cause(err).Error(),
@@ -97,19 +97,10 @@ func (t *RoleFunctionRelationshipsController) AddRoleFunction() {
 		t.ServeJSON()
 		return
 	}
-	o := orm.NewOrm()
-	now := time.Now()
-	roleFunction := &models.RoleFunctionRelationships{
-		RoleId:     roleFunctionInfo.RoleId,
-		FunctionId: roleFunctionInfo.Id,
-		Status:     consts.STATUS_VALID,
-		UpdatedAt:  now,
-		CreatedAt:  now,
-	}
-	if retcode, err := roleFunction.InsertRoleFunctionNoLock(&o); err != nil {
+	if retCode, err := models.AddRoleFunctions(roleFunctionInfo.Id, roleFunctionInfo.RoleIds, nil); err != nil {
 		Logger.Error(err.Error())
 		t.Data["json"] = map[string]interface{}{
-			"err_code": retcode,
+			"err_code": retCode,
 			"err_msg":  errors.Cause(err).Error(),
 		}
 		t.ServeJSON()

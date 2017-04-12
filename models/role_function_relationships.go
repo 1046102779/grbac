@@ -134,3 +134,38 @@ func GetFuncIdsByRoleId(id int) (funcIds []int, retcode int, err error) {
 	}
 	return
 }
+
+func AddRoleFunctions(funcId int, roleIds []int, o *orm.Ormer) (retCode int, err error) {
+	Logger.Info("[%v] enter AddRoleFunctions.", funcId)
+	defer Logger.Info("[%v] left AddRoleFunctions.", funcId)
+	if o == nil {
+		oo := orm.NewOrm()
+		o = &oo
+	}
+	if err = (*o).Begin(); err == nil {
+		defer func() {
+			if err != nil {
+				(*o).Rollback()
+			} else {
+				if err = (*o).Commit(); err != nil {
+					retCode = consts.ERROR_CODE__DB__TRANSACTION_COMMIT_FAILED
+				}
+			}
+		}()
+	}
+	now := time.Now()
+	for index := 0; index < len(roleIds); index++ {
+		roleFunction := &RoleFunctionRelationships{
+			RoleId:     roleIds[index],
+			FunctionId: funcId,
+			Status:     consts.STATUS_VALID,
+			UpdatedAt:  now,
+			CreatedAt:  now,
+		}
+		if retCode, err = roleFunction.InsertRoleFunctionNoLock(o); err != nil {
+			err = errors.Wrap(err, "AddRoleFunctions")
+			return
+		}
+	}
+	return
+}
