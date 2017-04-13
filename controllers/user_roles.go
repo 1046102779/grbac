@@ -6,6 +6,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -105,7 +106,7 @@ func (t *UserRolesController) InsertUserRole() {
 	user := &pb.User{
 		Mobile: info.Mobile,
 	}
-	conf.AccountClient.Call(fmt.Sprintf("%s.%s", "accounts", "GetUserByMobile"), user, user)
+	conf.AccountClient.Call(context.Background(), fmt.Sprintf("%s.%s", "accounts", "GetUserByMobile"), user, user)
 	// 通过角色名称， 获取角色ID
 	// 新增角色与用户的关系
 	o := orm.NewOrm()

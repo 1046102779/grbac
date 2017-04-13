@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -198,7 +199,7 @@ func GetUserRoles(pageIndex, pageSize int64, roleId int, searchKey string) (user
 		user := &pb.User{
 			Mobile: searchKey,
 		}
-		conf.AccountClient.Call(fmt.Sprintf("%s.%s", "accounts", "GetUsersByFuzzyMobile"), user, users)
+		conf.AccountClient.Call(context.Background(), fmt.Sprintf("%s.%s", "accounts", "GetUsersByFuzzyMobile"), user, users)
 		for index = 0; users != nil && index < len(users.Users); index++ {
 			userIds = append(userIds, int(users.Users[index].UserId))
 		}
@@ -219,7 +220,7 @@ func GetUserRoles(pageIndex, pageSize int64, roleId int, searchKey string) (user
 			UserId: int64(userRoles[index].UserId),
 		})
 	}
-	conf.AccountClient.Call(fmt.Sprintf("%s.%s", "accounts", "GetUsersByUserIds"), users, users)
+	conf.AccountClient.Call(context.Background(), fmt.Sprintf("%s.%s", "accounts", "GetUsersByUserIds"), users, users)
 	for index = 0; index < len(userRoles); index++ {
 		for subIndex = 0; users != nil && subIndex < len(users.Users); subIndex++ {
 			if userRoles[index].UserId == int(users.Users[subIndex].UserId) {
