@@ -304,7 +304,7 @@ func (t *FunctionsController) AddFunction() {
 	o := orm.NewOrm()
 	now := time.Now()
 	function := &models.Functions{
-		Uri:                functionInfo.Uri,
+		Uri:                strings.TrimSpace(functionInfo.Uri),
 		MethodType:         int16(models.GetMethodTypeByName(functionInfo.Method)),
 		Name:               functionInfo.Name,
 		ThirdRegionMarkKey: markKey,

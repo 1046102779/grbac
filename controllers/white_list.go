@@ -165,7 +165,7 @@ func (t *WhiteListController) AddWhiteList() {
 	now := time.Now()
 	whiteList := &models.WhiteList{
 		Name:       whiteListInfo.Name,
-		Url:        whiteListInfo.Uri,
+		Url:        strings.TrimSpace(whiteListInfo.Uri),
 		MethodType: int16(models.GetMethodTypeByName(whiteListInfo.Method)),
 		Status:     consts.STATUS_VALID,
 		UpdatedAt:  now,
