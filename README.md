@@ -46,7 +46,58 @@ end
 ```
 ## DEMO
 ![demo](grbac_demo.jpg)
-## 说明
 
+## 解析树性能测试结果
+可以看到一个请求耗时平均: `0.108ms`
+```
+ab -c 8000 -n 800000 -p post.txt -H "Accept: application/json"  -H "XXXX-XXXX-XXX-Id: 12" -H "XXXX-XXXX-XXXX-Id: 3"  http://120.**.**.193:30100/v1/grbacs/functions/tree_parsing
+This is ApacheBench, Version 2.3 <$Revision: 1604373 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 120.77.65.193 (be patient)
+Completed 80000 requests
+Completed 160000 requests
+Completed 240000 requests
+Completed 320000 requests
+Completed 400000 requests
+Completed 480000 requests
+Completed 560000 requests
+Completed 640000 requests
+Completed 720000 requests
+Completed 800000 requests
+Finished 800000 requests
+
+
+Server Software:
+Server Hostname:        120.77.65.193
+Server Port:            30040
+
+Document Path:          /v1/grbacs/functions/tree_parsing
+Document Length:        0 bytes
+
+Concurrency Level:      8000
+Time taken for tests:   86.028 seconds
+Complete requests:      800000
+Failed requests:        0
+Total transferred:      92800000 bytes
+Total body sent:        265600000
+HTML transferred:       0 bytes
+Requests per second:    9299.33 [#/sec] (mean)
+Time per request:       860.277 [ms] (mean)
+Time per request:       0.108 [ms] (mean, across all concurrent requests)
+Transfer rate:          1053.44 [Kbytes/sec] received
+                        3015.02 kb/s sent
+                        4068.46 kb/s total
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0   47 219.0      3    7025
+Processing:    22  810  96.5    798    2066
+Waiting:       19  806  96.6    794    2050
+Total:         24  857 242.3    807    7837
+```
+
+## 说明
 + `希望与大家一起成长，有任何该服务运行或者代码问题，可以及时找我沟通，喜欢开源，热爱开源, 欢迎多交流`   
 + `联系方式：cdh_cjx@163.com`
