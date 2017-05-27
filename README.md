@@ -48,7 +48,16 @@ end
 ![demo](grbac_demo.jpg)
 
 ## 解析树性能测试结果
+测试数据：
+functions表： 共259条
+role_function_relationships表：1036条
+roles表： 7条
+user_roles表: 31条
+white_list表: 85条
+
 可以看到一个请求耗时平均: `0.108ms`
+
+ab结果中指标说明，可参考[ab test](https://gist.github.com/JingwenTian/8591073)
 ```
 ab -c 8000 -n 800000 -p post.txt -H "Accept: application/json"  -H "XXXX-XXXX-XXX-Id: 12" -H "XXXX-XXXX-XXXX-Id: 3"  http://120.**.**.193:30100/v1/grbacs/functions/tree_parsing
 This is ApacheBench, Version 2.3 <$Revision: 1604373 $>
