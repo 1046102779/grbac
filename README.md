@@ -49,11 +49,13 @@ end
 
 ## 解析树性能测试结果
 测试数据：
+```
 functions表： 共259条
 role_function_relationships表：1036条
 roles表： 7条
 user_roles表: 31条
 white_list表: 85条
+```
 
 可以看到一个请求耗时平均: `0.108ms`
 
@@ -64,7 +66,7 @@ This is ApacheBench, Version 2.3 <$Revision: 1604373 $>
 Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
 Licensed to The Apache Software Foundation, http://www.apache.org/
 
-Benchmarking 120.77.65.193 (be patient)
+Benchmarking 120.**.**.193 (be patient)
 Completed 80000 requests
 Completed 160000 requests
 Completed 240000 requests
@@ -79,7 +81,7 @@ Finished 800000 requests
 
 
 Server Software:
-Server Hostname:        120.77.65.193
+Server Hostname:        120.**.**.193
 Server Port:            30040
 
 Document Path:          /v1/grbacs/functions/tree_parsing
